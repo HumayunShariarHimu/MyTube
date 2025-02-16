@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyTube</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: black;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: black;
+            color: red;
+            padding: 20px;
+            text-align: center;
+        }
+
+        header h2 {
+            margin: 0;
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        input, button {
+            font-size: 16px;
+            padding: 12px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        input {
+            margin-bottom: 15px;
+            background-color: #fff;
+            color: #333;
+        }
+
+        button {
+            background-color: red;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .response {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .video-list {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .video-item {
+            background-color: white;
+            border-radius: 8px;
+            margin: 10px;
+            width: 280px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 10px;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        iframe {
+            width: 100%;
+            height: 160px;
+            border-radius: 8px;
+        }
+
+        .video-item h3 {
+            font-size: 16px;
+            margin: 10px 0;
+            color: #333;
+        }
+
+        .video-link {
+            margin-top: 10px;
+        }
+
+        .video-link a {
+            color: #007bff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .video-link a:hover {
+            text-decoration: underline;
+        }
+
+        .load-more {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 5px;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+
+        .load-more:hover {
+            background-color: #0056b3;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            font-size: 14px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h2>MyTube</h2>
+        <p>A Smart YouTube Search System According to Your Feelings...</p>
+    </header>
+
+    <div class="container">
+        <input type="text" id="userInput" placeholder="আপনার প্রশ্ন বা অনুভূতি লিখুন...">
+        <button onclick="processUserRequest()">সার্চ</button>
+
+        <div class="response" id="responseOutput"></div>
+        <div class="video-list" id="videoList"></div>
+        <button id="loadMoreBtn" class="load-more" onclick="loadMoreVideos()" style="display: none;">আরও ভিডিও দেখুন</button>
+    </div>
+
+    <div class="footer">
+        <p>MyTube - Humayun Shariar Himu</p>
+    </div>
+
+    <script>
+        const apiKey = 'AIzaSyB-qzaC8h0mXoldEWhmr675uWyfy5xS134'; // আপনার ইউটিউব API কী এখানে ব্যবহার করুন
+        let nextPageToken = '';
+        let currentQuery = '';
+
+        // ইউজারের ইনপুট প্রসেস করা এবং এনএলপি বিশ্লেষণ করা
+        function processUserRequest() {
+            const inputText = document.getElementById("userInput").value.trim();
+            if (!inputText) { 
+                alert("⚠️ দয়া করে কিছু লিখুন!"); 
+                return; 
+            }
+
+            // ইউজারের চাহিদা ও অনুভূতি বিশ্লেষণ
+            const { sentiment, queryType, refinedQuery, language } = analyzeText(inputText);
+
+            // ইউটিউব ভিডিও সার্চ
+            currentQuery = refinedQuery;  // ইউটিউব সার্চের জন্য কুয়েরি সেট করা
+            searchYouTube(refinedQuery);
+
+            // ইউজারের চাহিদা অনুযায়ী রেসপন্স প্রদান
+            const response = generateResponse(sentiment, queryType);
+            document.getElementById("responseOutput").innerHTML = response;
+        }
+
+        // ইউজারের ইনপুট বিশ্লেষণ করা
+        function analyzeText(input) {
+            let sentiment = "neutral";
+            let queryType = "general";
+            let refinedQuery = input;
+            let language = 'en';
+
+            const positiveWords = ["great", "good", "awesome", "best", "amazing", "fantastic", "love", "like", "ভাল", "দারুন", "অসাধারণ", "চমৎকার"];
+            const negativeWords = ["bad", "poor", "awful", "worst", "hate", "angry", "disappointed", "খারাপ", "দুঃখজনক", "বিরক্ত"];
+            const tutorialWords = ["how to", "tutorial", "learn", "steps", "guide", "কিভাবে", "শিক্ষা", "টিউটোরিয়াল"];
+            const reviewWords = ["review", "best", "top", "comparison", "রিভিউ", "সেরা", "শ্রেষ্ঠ"];
+            const emotionalWords = ["excited", "bored", "happy", "sad", "angry", "relaxed", "উত্তেজিত", "বোরড", "খুশি", "দুঃখিত", "রাগান্বিত"];
+
+            // সেন্টিমেন্ট বিশ্লেষণ
+            for (let word of positiveWords) {
+                if (input.toLowerCase().includes(word)) {
+                    sentiment = "positive";
+                    break;
+                }
+            }
+            for (let word of negativeWords) {
+                if (input.toLowerCase().includes(word)) {
+                    sentiment = "negative";
+                    break;
+                }
+            }
+
+            // কিওয়ার্ড বিশ্লেষণ এবং queryType নির্ধারণ
+            for (let word of tutorialWords) {
+                if (input.toLowerCase().includes(word)) {
+                    queryType = "tutorial";
+                    refinedQuery = "tutorial " + input;  // টিউটোরিয়াল সম্পর্কিত ভিডিও খোঁজা
+                    break;
+                }
+            }
+
+            for (let word of reviewWords) {
+                if (input.toLowerCase().includes(word)) {
+                    queryType = "review";
+                    refinedQuery = "review " + input;  // রিভিউ ভিডিও খোঁজা
+                    break;
+                }
+            }
+
+            for (let word of emotionalWords) {
+                if (input.toLowerCase().includes(word)) {
+                    sentiment = word;  // অনুভূতি অনুযায়ী সাজেস্ট হবে
+                    break;
+                }
+            }
+
+            // ভাষা শনাক্তকরণ (এটি আরও সঠিক ভাবে ভাষা বিশ্লেষণ করার জন্য ব্যবহার করা যেতে পারে)
+            if (input.match(/[অ-হ]/)) { // বাংলা চিহ্নিত করা
+                language = 'bn';
+            }
+
+            return { sentiment, queryType, refinedQuery, language };
+        }
+
+        // প্রতিক্রিয়া তৈরি করা (Query Type, Sentiment অনুযায়ী)
+        function generateResponse(sentiment, queryType) {
+            let response = "আপনার চাহিদা অনুযায়ী ভিডিও খুঁজছি...";
+
+            if (sentiment === "positive") {
+                response = "এটি একটি ইতিবাচক অনুভূতি, আপনি নিশ্চয়ই ভাল কিছু খুঁজছেন!";
+            } else if (sentiment === "negative") {
+                response = "এটি একটি নেতিবাচক অনুভূতি, দুঃখিত যে আপনি খারাপ কিছু খুঁজছেন।";
+            } else if (sentiment === "excited") {
+                response = "এটি একটি উত্তেজিত অনুভূতি, আপনি নিশ্চয়ই কিছু চমৎকার খুঁজছেন!";
+            } else if (sentiment === "sad") {
+                response = "এটি একটি দুঃখজনক অনুভূতি, দয়া করে কিছু আশাবাদী ভিডিও খুঁজে দেখুন।";
+            }
+
+            if (queryType === "tutorial") {
+                response += "<br>আপনার যদি কোনো টিউটোরিয়াল ভিডিও প্রয়োজন হয়, তবে আমি কিছু সহায়ক ভিডিও খুঁজে বের করব।";
+            } else if (queryType === "review") {
+                response += "<br>আপনি যদি রিভিউ সম্পর্কিত কিছু চান, তবে আমি কিছু রিভিউ ভিডিও সরবরাহ করব।";
+            }
+
+            return response;
+        }
+
+        // ইউটিউব ভিডিও সার্চ করা
+        function searchYouTube(query) {
+            const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${query}&key=${apiKey}&maxResults=10`;
+
+            fetch(youtubeApiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    displayVideos(data.items);
+                    nextPageToken = data.nextPageToken;  // পরবর্তী পেজের টোকেন সেট করা
+                    document.getElementById("loadMoreBtn").style.display = 'block'; // পরবর্তী ভিডিও লোড বাটন দেখানো
+                })
+                .catch(error => {
+                    document.getElementById("videoList").innerHTML = "ভিডিও খুঁজতে সমস্যা হয়েছে!";
+                    console.error("Error fetching YouTube data:", error);
+                });
+        }
+
+        // ভিডিও রেজাল্ট প্রদর্শন করা (EMBED আকারে এবং লিংক)
+        function displayVideos(videos) {
+            const videoListDiv = document.getElementById("videoList");
+            videos.forEach(video => {
+                const videoId = video.id.videoId;
+                const videoEmbedUrl = `https://www.youtube.com/embed/${videoId}`;
+                const videoLink = `https://www.youtube.com/watch?v=${videoId}`;
+
+                const videoItem = document.createElement("div");
+                videoItem.classList.add("video-item");
+
+                const videoTitle = video.snippet.title;
+
+                videoItem.innerHTML = `
+                    <h3>${videoTitle}</h3>
+                    <iframe src="${videoEmbedUrl}" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    <div class="video-link">
+                        <a href="${videoLink}" target="_blank">ভিডিওটি দেখতে এখানে ক্লিক করুন</a>
+                    </div>
+                `;
+                videoListDiv.appendChild(videoItem);
+            });
+        }
+
+        // আরও ভিডিও লোড করার ফাংশন
+        function loadMoreVideos() {
+            const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${currentQuery}&key=${apiKey}&maxResults=10&pageToken=${nextPageToken}`;
+            
+            fetch(youtubeApiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    displayVideos(data.items); // নতুন ভিডিওগুলো প্রদর্শন করা
+                    nextPageToken = data.nextPageToken;  // পরবর্তী পেজের টোকেন আপডেট করা
+                    if (!nextPageToken) {
+                        document.getElementById("loadMoreBtn").style.display = 'none'; // যদি আরও ভিডিও না থাকে
+                    }
+                })
+                .catch(error => {
+                    document.getElementById("videoList").innerHTML = "আরও ভিডিও খুঁজতে সমস্যা হয়েছে!";
+                    console.error("Error fetching YouTube data:", error);
+                });
+        }
+    </script>
+</body>
+</html>

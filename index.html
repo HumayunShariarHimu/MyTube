@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyTube</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: black;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: black;
+            color: red;
+            padding: 20px;
+            text-align: center;
+        }
+
+        header h2 {
+            margin: 0;
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        input, button {
+            font-size: 16px;
+            padding: 12px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        input {
+            margin-bottom: 15px;
+            background-color: #fff;
+            color: #333;
+        }
+
+        button {
+            background-color: red;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .response {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .video-list {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .video-item {
+            background-color: white;
+            border-radius: 8px;
+            margin: 10px;
+            width: 280px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 10px;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        iframe {
+            width: 100%;
+            height: 160px;
+            border-radius: 8px;
+        }
+
+        .video-item h3 {
+            font-size: 16px;
+            margin: 10px 0;
+            color: #333;
+        }
+
+        .video-link {
+            margin-top: 10px;
+        }
+
+        .video-link a {
+            color: #007bff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .video-link a:hover {
+            text-decoration: underline;
+        }
+
+        .load-more {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 5px;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+
+        .load-more:hover {
+            background-color: #0056b3;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            font-size: 14px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h2>MyTube</h2>
+        <p>A Smart YouTube Search System According to Your Feelings...</p>
+    </header>
+
+    <div class="container">
+        <input type="text" id="apiKeyInput" placeholder="Enter your YouTube API key here">
+        <input type="text" id="userInput" placeholder="Enter your question or feeling...">
+        <button onclick="processUserRequest()">Search</button>
+
+        <div class="response" id="responseOutput"></div>
+        <div class="video-list" id="videoList"></div>
+        <button id="loadMoreBtn" class="load-more" onclick="loadMoreVideos()" style="display: none;">Load More Videos</button>
+    </div>
+
+    <div class="footer">
+    	<a href="./mytube_live.html">MyTube Live</a>
+        <p>MyTube - Humayun Shariar Himu</p>
+    </div>
+
+    <script>
+        let nextPageToken = '';
+        let currentQuery = '';
+
+        // Process user's input and analyze it
+        function processUserRequest() {
+            const apiKey = document.getElementById("apiKeyInput").value.trim();
+            const inputText = document.getElementById("userInput").value.trim();
+
+            if (!apiKey) {
+                alert(" Please enter your YouTube API key!");
+                return;
+            }
+
+            if (!inputText) {
+                alert(" Please enter something!");
+                return;
+            }
+
+            // Analyze user's need and sentiment
+            const { sentiment, queryType, refinedQuery, language } = analyzeText(inputText);
+
+            // YouTube video search
+            currentQuery = refinedQuery;  // Set the query for YouTube search
+            searchYouTube(refinedQuery, apiKey);
+
+            // Generate response based on user's need
+            const response = generateResponse(sentiment, queryType);
+            document.getElementById("responseOutput").innerHTML = response;
+        }
+
+        // Analyze the user's input
+        function analyzeText(input) {
+            let sentiment = "neutral";
+            let queryType = "general";
+            let refinedQuery = input;
+            let language = 'en';
+
+            const positiveWords = ["great", "good", "awesome", "best", "amazing", "fantastic", "love", "like"];
+            const negativeWords = ["bad", "poor", "awful", "worst", "hate", "angry", "disappointed"];
+            const tutorialWords = ["how to", "tutorial", "learn", "steps", "guide"];
+            const reviewWords = ["review", "best", "top", "comparison"];
+            const emotionalWords = ["excited", "bored", "happy", "sad", "angry", "relaxed"];
+
+            // Sentiment analysis
+            for (let word of positiveWords) {
+                if (input.toLowerCase().includes(word)) {
+                    sentiment = "positive";
+                    break;
+                }
+            }
+            for (let word of negativeWords) {
+                if (input.toLowerCase().includes(word)) {
+                    sentiment = "negative";
+                    break;
+                }
+            }
+
+            // Keyword analysis and determining queryType
+            for (let word of tutorialWords) {
+                if (input.toLowerCase().includes(word)) {
+                    queryType = "tutorial";
+                    refinedQuery = "tutorial " + input;  // Search for tutorial-related videos
+                    break;
+                }
+            }
+
+            for (let word of reviewWords) {
+                if (input.toLowerCase().includes(word)) {
+                    queryType = "review";
+                    refinedQuery = "review " + input;  // Search for review videos
+                    break;
+                }
+            }
+
+            for (let word of emotionalWords) {
+                if (input.toLowerCase().includes(word)) {
+                    sentiment = word;  // Suggest based on the feeling
+                    break;
+                }
+            }
+
+            return { sentiment, queryType, refinedQuery, language };
+        }
+
+        // Generate response (based on Query Type, Sentiment)
+        function generateResponse(sentiment, queryType) {
+            let response = "Searching for videos based on your request...";
+
+            if (sentiment === "positive") {
+                response = "This is a positive feeling, you're probably looking for something good!";
+            } else if (sentiment === "negative") {
+                response = "This is a negative feeling, sorry you're looking for something bad.";
+            } else if (sentiment === "excited") {
+                response = "This is an excited feeling, you're probably looking for something awesome!";
+            } else if (sentiment === "sad") {
+                response = "This is a sad feeling, try looking for some uplifting videos.";
+            }
+
+            if (queryType === "tutorial") {
+                response += "<br>If you're looking for tutorial videos, I will find some helpful ones.";
+            } else if (queryType === "review") {
+                response += "<br>If you want reviews, I will provide some review videos.";
+            }
+
+            return response;
+        }
+
+        // YouTube video search
+        function searchYouTube(query, apiKey) {
+            const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${query}&key=${apiKey}&maxResults=10`;
+
+            fetch(youtubeApiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    displayVideos(data);
+                })
+                .catch(error => {
+                    console.error("Error fetching YouTube data:", error);
+                    alert("Error fetching video data. Please try again!");
+                });
+        }
+
+        // Display YouTube videos
+        function displayVideos(data) {
+            const videoList = document.getElementById("videoList");
+            videoList.innerHTML = ""; // Clear previous videos
+
+            if (data.items.length === 0) {
+                videoList.innerHTML = "<p>No videos found.</p>";
+                return;
+            }
+
+            data.items.forEach(item => {
+                const videoItem = document.createElement("div");
+                videoItem.classList.add("video-item");
+
+                const videoIframe = document.createElement("iframe");
+                videoIframe.src = `https://www.youtube.com/embed/${item.id.videoId}`;
+                videoIframe.allow = "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture";
+                videoIframe.allowFullscreen = true;
+
+                const videoTitle = document.createElement("h3");
+                videoTitle.textContent = item.snippet.title;
+
+                const videoLink = document.createElement("div");
+                videoLink.classList.add("video-link");
+                const link = document.createElement("a");
+                link.href = `https://www.youtube.com/watch?v=${item.id.videoId}`;
+                link.target = "_blank";
+                link.textContent = "Click here to watch the video";
+                videoLink.appendChild(link);
+
+                videoItem.appendChild(videoIframe);
+                videoItem.appendChild(videoTitle);
+                videoItem.appendChild(videoLink);
+
+                videoList.appendChild(videoItem);
+            });
+
+            // Check if there are more videos to load
+            if (data.nextPageToken) {
+                nextPageToken = data.nextPageToken;
+                document.getElementById("loadMoreBtn").style.display = "inline-block";
+            } else {
+                document.getElementById("loadMoreBtn").style.display = "none";
+            }
+        }
+
+        // Load more videos
+        function loadMoreVideos() {
+            const apiKey = document.getElementById("apiKeyInput").value.trim();
+
+            const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${currentQuery}&key=${apiKey}&maxResults=10&pageToken=${nextPageToken}`;
+
+            fetch(youtubeApiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    displayVideos(data);
+                })
+                .catch(error => {
+                    console.error("Error fetching YouTube data:", error);
+                    alert("Error fetching video data. Please try again!");
+                });
+        }
+    </script>
+</body>
+</html>
